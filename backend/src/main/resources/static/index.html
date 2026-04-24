@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Music System Chart Input</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/tone@15.0.4/build/Tone.js"></script>
+</head>
+<body>
+<main class="container">
+    <section class="panel tabsPanel">
+        <h1>Music System</h1>
+        <div class="tabs">
+            <button id="tabInputBtn" class="tabBtn active" type="button">輸入譜面</button>
+            <button id="tabPlaybackBtn" class="tabBtn" type="button">播放介面</button>
+        </div>
+
+        <div id="tabInputPane" class="tabPane active">
+            <div class="grid">
+                <label>歌名 <input id="songName" value="Take the A Train" /></label>
+                <label>拍號
+                    <select id="timeSignature">
+                        <option>4/4</option>
+                        <option>3/4</option>
+                        <option>6/8</option>
+                    </select>
+                </label>
+                <label>速度(BPM) <input id="tempo" type="number" min="40" max="240" value="160" /></label>
+                <label>風格
+                    <select id="style"></select>
+                </label>
+                <label>伴奏方式
+                    <select id="arrangementMode"></select>
+                </label>
+                <label>調性 <input id="keySignature" value="C" /></label>
+                <label>反覆記號 <input id="repeatMarkers" value="A A' B A" /></label>
+                <label>整首反覆次數 <input id="songRepeats" type="number" min="1" value="3" /></label>
+            </div>
+
+            <div class="barsHeader">
+                <h2>段落與小節</h2>
+                <button id="addSectionBtn" type="button">新增段落</button>
+            </div>
+            <div id="sections" class="sections"></div>
+            <button id="generateBtn" class="primary" type="button">生成預覽</button>
+
+            <div class="userGuide">
+                <h3>使用說明</h3>
+                <ul class="guideList">
+                    <li>先選拍號與風格，再輸入段落小節和和弦。</li>
+                    <li>每小節可輸入 1~4 個拍點和弦，例如 <code>C / / /</code>、<code>Dm7 G7 Cmaj7 /</code>。</li>
+                    <li><code>/</code> 代表延用上一拍和弦；<code>//B7</code> 代表延用後在最後一拍換成 B7。</li>
+                    <li>反覆記號可用 <code>A A B A</code> 或 <code>AABA</code>，會依順序排譜與生成。</li>
+                    <li>按「生成預覽」後可播放或下載 MIDI。</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="tabPlaybackPane" class="tabPane">
+            <h2>播放介面</h2>
+            <div class="controls">
+                <button id="playBtn" type="button">播放</button>
+                <button id="stopBtn" type="button">停止</button>
+                <button id="downloadMidiBtn" type="button">下載 MIDI</button>
+            </div>
+            <p id="status">尚未生成</p>
+            <div id="previewSummary" class="previewSummary">尚未有預覽資料</div>
+            <div id="chartPreview" class="chartPreview"></div>
+            <ul id="warnings"></ul>
+        </div>
+    </section>
+</main>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+.DS_Store
+.idea/
+.vscode/
+*.iml
+
+# Node / frontend local artifacts
+node_modules/
+
+# Java / Maven build artifacts
+backend/target/
+frontend/target/
+*.log

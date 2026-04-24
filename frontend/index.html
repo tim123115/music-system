@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Music System Chart Input</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/tone@15.0.4/build/Tone.js"></script>
+</head>
+<body>
+<main class="container">
+    <section class="panel">
+        <h1>輸入譜面</h1>
+        <div class="grid">
+            <label>歌名 <input id="songName" value="My Song" /></label>
+            <label>拍號
+                <select id="timeSignature">
+                    <option>4/4</option>
+                    <option>3/4</option>
+                    <option>6/8</option>
+                </select>
+            </label>
+            <label>速度(BPM) <input id="tempo" type="number" min="40" max="240" value="100" /></label>
+            <label>風格
+                <select id="style"></select>
+            </label>
+            <label>調性 <input id="keySignature" value="C" /></label>
+            <label>反覆記號 <input id="repeatMarkers" value="A A B A" /></label>
+            <label>整首反覆次數 <input id="songRepeats" type="number" min="1" value="1" /></label>
+        </div>
+
+        <div class="barsHeader">
+            <h2>段落與小節</h2>
+            <button id="addSectionBtn" type="button">新增段落</button>
+        </div>
+        <div id="sections" class="sections"></div>
+        <button id="generateBtn" class="primary" type="button">生成預覽</button>
+    </section>
+
+    <section class="panel">
+        <h2>播放介面</h2>
+        <div class="controls">
+            <button id="playBtn" type="button">播放</button>
+            <button id="stopBtn" type="button">停止</button>
+            <button id="downloadMidiBtn" type="button">下載 MIDI</button>
+        </div>
+        <p id="status">尚未生成</p>
+        <div id="previewSummary" class="previewSummary">尚未有預覽資料</div>
+        <div id="chartPreview" class="chartPreview"></div>
+        <ul id="warnings"></ul>
+    </section>
+
+    <section class="panel">
+        <h2>和弦輸入說明（接近 JJazzLab）</h2>
+        <ul class="guideList">
+            <li>每小節採「拍點序列」輸入，4/4 會看成 4 拍，例：<code>Dm7 G7 Cmaj7 Am7</code></li>
+            <li>可用升降記號：<code>F#</code>、<code>Bb</code></li>
+            <li>可用常見後綴：<code>m</code>、<code>m7</code>、<code>maj7</code>、<code>7</code>、<code>dim</code>、<code>sus4</code></li>
+            <li>可寫 slash chord：<code>C/E</code>（目前預覽只先取根音做簡化播放）</li>
+            <li>可輸入佔位斜線：<code>C //B7</code> 代表 C 佔前 3 拍，B7 在第 4 拍</li>
+            <li><code>/</code> 代表沿用上一拍和弦；可用 <code>|</code> 或 <code>,</code> 作分隔</li>
+            <li>這版 parser 先對齊你要的網頁輸入需求，完整 JJazzLab parser 會在接 toolkit 時替換</li>
+        </ul>
+    </section>
+</main>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
