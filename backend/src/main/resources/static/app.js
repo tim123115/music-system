@@ -12,6 +12,7 @@ const apiBase = window.location.origin;
 const styleSelect = document.getElementById("style");
 const timeSignatureSelect = document.getElementById("timeSignature");
 const arrangementModeSelect = document.getElementById("arrangementMode");
+const soundfontSelect = document.getElementById("soundfontPath");
 const tabInputBtn = document.getElementById("tabInputBtn");
 const tabPlaybackBtn = document.getElementById("tabPlaybackBtn");
 const tabInputPane = document.getElementById("tabInputPane");
@@ -372,6 +373,33 @@ async function loadStyles() {
     }
 }
 
+function toSoundfontLabel(path) {
+    if (!path) return "(default)";
+    const normalized = path.replace(/\\/g, "/");
+    return normalized.split("/").pop() || path;
+}
+
+async function loadSoundfonts() {
+    if (!soundfontSelect) return;
+    const response = await fetch(`${apiBase}/api/arrangements/soundfonts`);
+    const soundfonts = response.ok ? await response.json() : [];
+    soundfontSelect.innerHTML = "";
+    if (!soundfonts.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "使用系統預設";
+        soundfontSelect.appendChild(option);
+        return;
+    }
+    for (const path of soundfonts) {
+        const option = document.createElement("option");
+        option.value = path;
+        option.textContent = toSoundfontLabel(path);
+        option.title = path;
+        soundfontSelect.appendChild(option);
+    }
+}
+
 function loadArrangementModes(style) {
     if (!arrangementModeSelect) return;
     arrangementModeSelect.innerHTML = "";
@@ -407,6 +435,7 @@ async function generatePreview() {
         timeSignature: document.getElementById("timeSignature").value,
         tempo: Number(document.getElementById("tempo").value),
         style: document.getElementById("style").value,
+        soundfontPath: soundfontSelect?.value || "",
         keySignature: document.getElementById("keySignature").value,
         arrangementMode: arrangementModeSelect?.value || "MAIN_A",
         repeatMarkers: document.getElementById("repeatMarkers").value,
@@ -436,9 +465,18 @@ async function generatePreview() {
             const audioData = await audioResponse.json();
             currentResponse.wavBase64 = audioData.wavBase64;
             currentResponse.warnings = [...(currentResponse.warnings || []), ...(audioData.warnings || [])];
+        } else {
+            currentResponse.warnings = [
+                ...(currentResponse.warnings || []),
+                `WAV 渲染失敗（HTTP ${audioResponse.status}），已保留 MIDI 預覽模式。`
+            ];
         }
-    } catch {
+    } catch (error) {
         // Keep preview usable even if audio rendering fails.
+        currentResponse.warnings = [
+            ...(currentResponse.warnings || []),
+            `WAV 渲染失敗：${error?.message || "未知錯誤"}，已保留 MIDI 預覽模式。`
+        ];
     }
     showWarnings(currentResponse.warnings);
     renderPreview(currentResponse);
@@ -530,6 +568,11 @@ function downloadMidi() {
 }
 
 for (const section of initialSections) addSection(section);
+loadSoundfonts().catch(() => {
+    if (soundfontSelect) {
+        soundfontSelect.innerHTML = `<option value="">使用系統預設</option>`;
+    }
+});
 loadStyles().catch(() => {
     styleSelect.innerHTML = `<option value="PopBallad">PopBallad</option>`;
 });

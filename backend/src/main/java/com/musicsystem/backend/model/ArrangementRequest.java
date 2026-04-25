@@ -7,6 +7,7 @@ public record ArrangementRequest(
         String timeSignature,
         Integer tempo,
         String style,
+        String soundfontPath,
         String keySignature,
         Integer transposeSemitones,
         String arrangementMode,

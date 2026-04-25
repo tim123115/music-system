@@ -41,6 +41,11 @@ public class ArrangementController {
         return arrangementService.supportedStyles(timeSignature);
     }
 
+    @GetMapping("/soundfonts")
+    public List<String> soundfonts() {
+        return arrangementService.availableSoundfonts();
+    }
+
     private void validateMeasures(ArrangementRequest request) {
         boolean hasFlatMeasures = request != null && request.measures() != null && !request.measures().isEmpty();
         boolean hasSections = request != null && request.sections() != null && !request.sections().isEmpty();

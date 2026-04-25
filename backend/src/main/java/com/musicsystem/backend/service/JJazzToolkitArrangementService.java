@@ -38,9 +38,11 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -64,6 +66,14 @@ public class JJazzToolkitArrangementService implements ArrangementService {
     private final String soundFontPath;
     private final String toolkitRepoPath;
     private final String coreRepoPath;
+    private static final List<Path> SOUNDFONT_SCAN_DIRS = List.of(
+            Path.of("/usr/share/sounds/sf2"),
+            Path.of("/usr/share/sounds/sf3"),
+            Path.of("/usr/share/soundfonts"),
+            Path.of("/usr/local/share/sounds/sf2"),
+            Path.of("/usr/local/share/sounds/sf3"),
+            Path.of("/usr/local/share/soundfonts")
+    );
 
     public JJazzToolkitArrangementService(
             ObjectProvider<PreviewArrangementService> previewArrangementServiceProvider,
@@ -119,6 +129,25 @@ public class JJazzToolkitArrangementService implements ArrangementService {
     }
 
     @Override
+    public List<String> availableSoundfonts() {
+        LinkedHashSet<String> allowed = computeAllowedSoundfontPaths();
+        if (allowed.isEmpty()) {
+            return List.of();
+        }
+        List<String> preferred = new ArrayList<>();
+        String resolvedDefault = resolveSoundfontPath();
+        if (!resolvedDefault.isBlank() && allowed.contains(resolvedDefault)) {
+            preferred.add(resolvedDefault);
+        }
+        List<String> rest = allowed.stream()
+                .filter(path -> !path.equals(resolvedDefault))
+                .sorted()
+                .collect(Collectors.toList());
+        preferred.addAll(rest);
+        return preferred;
+    }
+
+    @Override
     public AudioRenderResponse renderAudio(ArrangementRequest request) {
         ArrangementResponse preview = buildPreview(request);
         List<String> warnings = new ArrayList<>(preview.warnings());
@@ -134,7 +163,7 @@ public class JJazzToolkitArrangementService implements ArrangementService {
             wavFile = Files.createTempFile("jjazz-render-", ".wav").toFile();
             Files.write(midiFile.toPath(), midiBytes);
 
-            EmbeddedSynth synth = activateFluidSynth();
+            EmbeddedSynth synth = activateFluidSynth(request.soundfontPath());
             synth.generateWavFile(midiFile, wavFile);
             String wavBase64 = Base64.getEncoder().encodeToString(Files.readAllBytes(wavFile.toPath()));
 
@@ -516,12 +545,12 @@ public class JJazzToolkitArrangementService implements ArrangementService {
         return Objects.requireNonNullElse(style, "").isBlank() ? TOOLKIT_STYLE_HINTS.getFirst() : style;
     }
 
-    private EmbeddedSynth activateFluidSynth() throws EmbeddedSynthException {
-        String resolvedSoundfontPath = resolveSoundfontPath();
+    private EmbeddedSynth activateFluidSynth(String requestedSoundfontPath) throws EmbeddedSynthException {
+        String resolvedSoundfontPath = resolveSoundfontPath(requestedSoundfontPath);
         if (resolvedSoundfontPath.isBlank()) {
             throw new UnsupportedOperationException(
                     "No SoundFont path configured. Set jjazz.soundfont.path or JJAZZ_SOUNDFONT_PATH, " +
-                            "or set jjazz.toolkit.repo.path / JJAZZ_TOOLKIT_REPO_PATH so demo/JJazzLab-SoundFont.sf2 can be auto-detected."
+                            "or select one from /api/arrangements/soundfonts."
             );
         }
         File soundFontFile = new File(resolvedSoundfontPath);
@@ -539,6 +568,18 @@ public class JJazzToolkitArrangementService implements ArrangementService {
     }
 
     private String resolveSoundfontPath() {
+        return resolveSoundfontPath(null);
+    }
+
+    private String resolveSoundfontPath(String requestedPath) {
+        String normalizedRequested = requestedPath == null ? "" : requestedPath.trim();
+        if (!normalizedRequested.isBlank()) {
+            Set<String> allowed = computeAllowedSoundfontPaths();
+            if (!allowed.contains(normalizedRequested)) {
+                throw new UnsupportedOperationException("Requested SoundFont is not in whitelist: " + normalizedRequested);
+            }
+            return normalizedRequested;
+        }
         if (!soundFontPath.isBlank()) {
             return soundFontPath;
         }
@@ -548,7 +589,77 @@ public class JJazzToolkitArrangementService implements ArrangementService {
                 return derived.toString();
             }
         }
+        if (!coreRepoPath.isBlank()) {
+            Path coreEmbeddedSynthSf2 = Path.of(coreRepoPath)
+                    .resolve("plugins")
+                    .resolve("FluidSynthEmbeddedSynth")
+                    .resolve("src")
+                    .resolve("main")
+                    .resolve("soundfont")
+                    .resolve("JJazzLab-SoundFont.sf2");
+            if (Files.exists(coreEmbeddedSynthSf2)) {
+                return coreEmbeddedSynthSf2.toString();
+            }
+        }
         return "";
+    }
+
+    private LinkedHashSet<String> computeAllowedSoundfontPaths() {
+        LinkedHashSet<String> allowed = new LinkedHashSet<>();
+        String configured = soundFontPath == null ? "" : soundFontPath.trim();
+        if (!configured.isBlank() && Files.isRegularFile(Path.of(configured))) {
+            allowed.add(configured);
+        }
+        String toolkitDefault = resolveToolkitSoundfontPath();
+        if (!toolkitDefault.isBlank()) {
+            allowed.add(toolkitDefault);
+        }
+        String coreDefault = resolveCoreSoundfontPath();
+        if (!coreDefault.isBlank()) {
+            allowed.add(coreDefault);
+        }
+        for (Path dir : SOUNDFONT_SCAN_DIRS) {
+            if (!Files.isDirectory(dir)) {
+                continue;
+            }
+            try (var stream = Files.list(dir)) {
+                List<String> files = stream
+                        .filter(Files::isRegularFile)
+                        .map(Path::toString)
+                        .filter(path -> {
+                            String lower = path.toLowerCase(Locale.ROOT);
+                            return lower.endsWith(".sf2") || lower.endsWith(".sf3") || lower.endsWith(".dls");
+                        })
+                        .sorted()
+                        .toList();
+                allowed.addAll(files);
+            } catch (Exception ignored) {
+                // Keep resilient when scanning optional system folders.
+            }
+        }
+        return allowed;
+    }
+
+    private String resolveToolkitSoundfontPath() {
+        if (toolkitRepoPath.isBlank()) {
+            return "";
+        }
+        Path derived = Path.of(toolkitRepoPath).resolve("demo").resolve("JJazzLab-SoundFont.sf2");
+        return Files.exists(derived) ? derived.toString() : "";
+    }
+
+    private String resolveCoreSoundfontPath() {
+        if (coreRepoPath.isBlank()) {
+            return "";
+        }
+        Path coreEmbeddedSynthSf2 = Path.of(coreRepoPath)
+                .resolve("plugins")
+                .resolve("FluidSynthEmbeddedSynth")
+                .resolve("src")
+                .resolve("main")
+                .resolve("soundfont")
+                .resolve("JJazzLab-SoundFont.sf2");
+        return Files.exists(coreEmbeddedSynthSf2) ? coreEmbeddedSynthSf2.toString() : "";
     }
 
     private void addRepoPathWarnings(List<String> warnings) {

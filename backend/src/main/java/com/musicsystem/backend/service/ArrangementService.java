@@ -20,4 +20,8 @@ public interface ArrangementService {
     default List<String> supportedStyles(String timeSignature) {
         return supportedStyles();
     }
+
+    default List<String> availableSoundfonts() {
+        return List.of();
+    }
 }

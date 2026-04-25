@@ -23,7 +23,12 @@ Frontend static files are served by Spring Boot.
 ## Available API
 
 - `POST /api/arrangements/preview`
+- `POST /api/arrangements/render-audio`
 - `GET /api/arrangements/rhythms`
+- `GET /api/arrangements/soundfonts`
+
+For full request/response contracts and integration flow, see
+`docs/integration-api.md`.
 
 ## Multi-repo setup (recommended)
 
